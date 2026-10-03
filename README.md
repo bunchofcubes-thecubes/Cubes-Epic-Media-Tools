@@ -8,7 +8,8 @@
 ---
 
 ### Web Downloader
-* You can download videos from a ton of sites, The list is in yt-dlp
+* You can download videos from a ton of sites,
+* heres the [list of sites that are supported](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) in the web downloader
 
 ### Spotify to MP3
 * You can paste in a spotify album/track/playlist link
