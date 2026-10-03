@@ -55,8 +55,8 @@ class CubesAllInOneApp(ctk.CTk):
         super().__init__()
 
         self.title("Cubes Epic Media Tools (CEMT)")
-        self.geometry("780x700")
-        self.minsize(700, 650)
+        self.geometry("780x750")
+        self.minsize(700, 750)
         self.configure(fg_color=APP_BG)
 
         self.default_download_dir = os.path.join(os.path.expanduser("~"), "Downloads")
