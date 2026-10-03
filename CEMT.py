@@ -55,8 +55,8 @@ class CubesAllInOneApp(ctk.CTk):
         super().__init__()
 
         self.title("Cubes Epic Media Tools (CEMT)")
-        self.geometry("780x750")
-        self.minsize(780, 750)
+        self.geometry("780x700")
+        self.minsize(700, 650)
         self.configure(fg_color=APP_BG)
 
         self.default_download_dir = os.path.join(os.path.expanduser("~"), "Downloads")
@@ -66,6 +66,13 @@ class CubesAllInOneApp(ctk.CTk):
         self.ytdlp_path = get_ytdlp_path()
         self.ffmpeg_path = get_ffmpeg_path()
 
+        icon_path = os.path.join(self.bundle_dir, "icon.ico")
+        if os.path.exists(icon_path):
+            self.iconbitmap(icon_path)
+            self.after(100, lambda: self.iconbitmap(icon_path))
+            
+        self.global_output_dir = self.default_download_dir
+
         self.progress_regex = re.compile(r"(\d+(?:\.\d+)?)%")
         self.ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
@@ -73,35 +80,10 @@ class CubesAllInOneApp(ctk.CTk):
         self.target_progress = 0.0
         self.cancel_event = threading.Event()
 
-        # Global folder config
-        self.global_output_dir = self.default_download_dir
-        self._load_config()
-
         self._build_ui()
         self.after(20, self._animate_progress)
         
     # CONFIG PERSISTENCE
-
-    def _load_config(self):
-        config_path = os.path.join(self.bundle_dir, "cemt_config.json")
-        try:
-            with open(config_path, 'r') as f:
-                config = json.load(f)
-                saved_dir = config.get("output_dir")
-                if saved_dir and os.path.exists(saved_dir):
-                    self.global_output_dir = saved_dir
-                    self.default_download_dir = saved_dir
-        except Exception:
-            pass
-
-    def _save_config(self):
-        config_path = os.path.join(self.bundle_dir, "cemt_config.json")
-        config = {"output_dir": self.global_output_dir}
-        try:
-            with open(config_path, 'w') as f:
-                json.dump(config, f, indent=2)
-        except Exception:
-            pass
 
     def _browse_global_folder(self):
         selected = filedialog.askdirectory(initialdir=self.global_dir_entry.get())
@@ -109,13 +91,11 @@ class CubesAllInOneApp(ctk.CTk):
             self.global_dir_entry.delete(0, "end")
             self.global_dir_entry.insert(0, selected)
             self.global_output_dir = selected
-            self._save_config()
 
     def _update_global_dir(self):
         path = self.global_dir_entry.get().strip()
         if path:
             self.global_output_dir = path
-            self._save_config()
         
         # ui
 
@@ -127,7 +107,7 @@ class CubesAllInOneApp(ctk.CTk):
         title_frame.pack(side="left")
 
         ctk.CTkLabel(title_frame, text="Cubes Epic Media Tools (CEMT)", font=("Segoe UI", 26, "bold"), text_color=TEXT).pack(anchor="w")
-        ctk.CTkLabel(title_frame, text="Version 1.1 by BunchOfCubes", font=("Segoe UI", 12), text_color=SUBTEXT).pack(anchor="w")
+        ctk.CTkLabel(title_frame, text="Version 1.2 by BunchOfCubes", font=("Segoe UI", 12), text_color=SUBTEXT).pack(anchor="w")
 
         self.status_dot = ctk.CTkLabel(header, text="● Ready", font=("Segoe UI", 11, "bold"), text_color=GREEN)
         self.status_dot.pack(side="right", pady=8)
@@ -148,8 +128,6 @@ class CubesAllInOneApp(ctk.CTk):
         self.global_dir_entry = ctk.CTkEntry(folder_row, height=38)
         self.global_dir_entry.insert(0, self.global_output_dir)
         self.global_dir_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        self.global_dir_entry.bind("<Return>", lambda e: self._update_global_dir())
-        self.global_dir_entry.bind("<FocusOut>", lambda e: self._update_global_dir())
 
         ctk.CTkButton(folder_row, text="Browse", width=90, height=38, command=self._browse_global_folder).pack(side="right")
 
