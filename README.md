@@ -10,11 +10,12 @@
 ### Web Downloader
 * You can download videos from a ton of sites,
 * heres the [list of sites that are supported](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) in the web downloader
+* The main ones being Youtube, Tiktok, Bilibili, Instagram, Twitch, and Vimeo,
 
 ### Spotify to MP3
 * You can paste in a spotify album/track/playlist link
 * Do note this does not bypass the Spotify DRM it only does a workaround by downloading a youtube video based on the song metadata.
-* IF YOU GET a wrong song please use the Multiple Matches option to choose manually in the candidates.
+* IF YOU GET a wrong song please use the Multiple Matches option to choose manually from the candidates.
 
 ### SoundCloud Downloader
 * This can work with the web downloader but use this tab to have the album cover art and overall more customization.
