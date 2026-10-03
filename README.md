@@ -2,8 +2,11 @@
 
 **Open-Source Media Suite for Windows a bit for linux**
 
+# Download it here
+**[Download the latest Windows .exe here](../../releases/latest)**
+
 > **Security & Transparency Note:** 
-> this project is open-source. the application simply provides a visual interface for `yt-dlp` and `ffmpeg`. your antivirus might flag it as a "false positive" (this is a known issue with PyInstaller). **For maximum security, you are encouraged to read the `main.py` source code and run it directly via Python.**
+> this project is open-source. the application simply provides a visual interface for `yt-dlp` and `ffmpeg`. your antivirus might flag it as a "false positive" (this is a known issue with PyInstaller). **For maximum security, you are encouraged to read the `CEMT.py` source code and run it directly via Python.**
 
 ---
 
@@ -51,7 +54,7 @@ Running from the source code is the safest method and guarantees you are not run
 
 ### Installation Steps
 1. Clone or download this repository to your computer.
-2. Place `yt-dlp.exe` and `ffmpeg.exe` in the **same folder** as `main.py`.
+2. Place `yt-dlp.exe` and `ffmpeg.exe` in the **same folder** as `CEMT.py`.
 3. Open your terminal/command prompt in that folder and install the GUI library:
    ```bash
    pip install customtkinter
