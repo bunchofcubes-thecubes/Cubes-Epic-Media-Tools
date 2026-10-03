@@ -1,6 +1,7 @@
 # Cubes Epic Media Tools (CEMT)
 
 **Open-Source Media Suite for Windows a bit for linux**
+
 This program purpose is to convert stuff or things from sites into your device without having to go on
 those convert to websites and get like 10 billion redirects to like some bs and let it take 50% of your time.
 
@@ -8,7 +9,7 @@ those convert to websites and get like 10 billion redirects to like some bs and 
 **[Download the latest Windows .exe here](../../releases/latest)**
 
 > **Security & Transparency Note:** 
-> this project is open-source. the application simply provides a visual interface for `yt-dlp` and `ffmpeg`. your antivirus might flag it as a "false positive" (this is a known issue with PyInstaller). **For maximum security, you are encouraged to read the `CEMT.py` source code and run it directly via Python.**
+> this project is open-source. the application simply provides a visual interface for `yt-dlp` and `ffmpeg`. your antivirus might flag it as a "false positive" (this is a known issue with PyInstaller). **for security, you are encouraged to read the `CEMT.py` source code and run it directly via Python.**
 
 ---
 
@@ -47,7 +48,7 @@ This app does not contain any malicious payloads. It relies on three standard, w
 
 ## How to Run from Source Code
 
-Running from the source code is the safest method and guarantees you are not running a virus.
+Running from the source code confirms you are not running a virus. 👍👍
 
 ### Prerequisites
 1. Install **Python 3.8 or higher** from [python.org](https://www.python.org/).
