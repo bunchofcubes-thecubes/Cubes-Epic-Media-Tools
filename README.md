@@ -1,11 +1,8 @@
 # Cubes Epic Media Tools (CEMT)
 
-**Open-Source Media Suite for Windows a bit for linux**
-
 This program purpose is to convert stuff or things from sites into your device without having to go on
 those convert to websites and get like 10 billion redirects to like some bs and let it take 50% of your time.
 
-# Download it here
 **[Download the latest Windows .exe here](../../releases/latest)**
 
 > **Security & Transparency Note:** 
