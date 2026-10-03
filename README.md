@@ -50,7 +50,7 @@ This app does not contain any malicious payloads. It relies on three standard, w
 
 Running from the source code confirms you are not running a virus. 👍👍
 
-### Prerequisites
+### Required Tools
 1. Install **Python 3.8 or higher** from [python.org](https://www.python.org/).
 2. Download the latest **`yt-dlp.exe`** from the [official yt-dlp GitHub](https://github.com/yt-dlp/yt-dlp/releases).
 3. Download **`ffmpeg.exe`** (Essentials build) from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) or the official ffmpeg website.
