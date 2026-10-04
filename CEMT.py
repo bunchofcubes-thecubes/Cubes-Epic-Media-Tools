@@ -148,8 +148,8 @@ class CubesAllInOneApp(ctk.CTk):
         )
         self.tabview.pack(fill="both", expand=True, padx=28, pady=(12, 10))
 
+        # Social tab removed from here
         self.tab_web = self.tabview.add("Web Downloader")
-        self.tab_social = self.tabview.add("Social")
         self.tab_converter = self.tabview.add("File Converter")
         self.tab_gif = self.tabview.add("GIF Converter")
         self.tab_spotify = self.tabview.add("Spotify")
@@ -157,7 +157,7 @@ class CubesAllInOneApp(ctk.CTk):
         self.tab_activity = self.tabview.add("Activity")
 
         self._build_web_tab()
-        self._build_social_tab()
+        # self._build_social_tab() removed
         self._build_converter_tab()
         self._build_gif_tab()
         self._build_spotify_tab()
@@ -221,7 +221,6 @@ class CubesAllInOneApp(ctk.CTk):
         self.cancel_event.clear()
         self.cancel_btn.configure(state="disabled")
         self.web_dl_btn.configure(state="normal", text="Download Media")
-        self.social_dl_btn.configure(state="normal", text="Download Social Media")
         self.convert_btn.configure(state="normal", text="Convert File")
         self.gif_convert_btn.configure(state="normal", text="Convert Video → GIF")
         self.spotify_btn.configure(state="normal", text="Match & Download MP3s")
@@ -647,20 +646,6 @@ class CubesAllInOneApp(ctk.CTk):
         self.web_dl_btn = ctk.CTkButton(self.tab_web, text="Download Media", height=46, corner_radius=12, font=("Segoe UI", 13, "bold"), fg_color=ACCENT, hover_color=ACCENT_HOVER, command=self._start_web_download)
         self.web_dl_btn.pack(fill="x", padx=18, pady=14)
 
-    def _build_social_tab(self):
-        card = self._card(self.tab_social)
-        self._label(card, "TIKTOK / INSTAGRAM URL", bold=True).pack(anchor="w", padx=15, pady=(15, 5))
-        self.social_url_entry = ctk.CTkEntry(card, height=38, placeholder_text="Paste a Tiktok or Instagram URL")
-        self.social_url_entry.pack(fill="x", padx=15, pady=(0, 15))
-
-        self.social_folder_var = ctk.BooleanVar(value=True)
-        ctk.CTkCheckBox(card, text="Save into a dedicated user folder", variable=self.social_folder_var).pack(anchor="w", padx=15, pady=5)
-        
-        self._label(card, "This is made for Converting Public Likes/Favourites/Reposts. You can use the web downloader for standalone videos too.", size=11, color="#8B98A8").pack(anchor="w", padx=15, pady=(5, 10))
-
-        self.social_dl_btn = ctk.CTkButton(self.tab_social, text="Download Social Media", height=46, corner_radius=12, font=("Segoe UI", 13, "bold"), fg_color="#fe2c55", hover_color="#e0264a", command=self._start_social_download)
-        self.social_dl_btn.pack(fill="x", padx=18, pady=14)
-
     def _build_converter_tab(self):
         card = self._card(self.tab_converter)
         self._label(card, "SOURCE FILE", bold=True).pack(anchor="w", padx=15, pady=(15, 5))
@@ -807,22 +792,6 @@ class CubesAllInOneApp(ctk.CTk):
         self._show_progress_ui()
         threading.Thread(target=self._run_ytdlp, args=(url,), daemon=True).start()
 
-    def _start_social_download(self):
-        url = self.social_url_entry.get().strip()
-        if not url:
-            messagebox.showwarning("Missing URL", "Enter a social media URL first.")
-            return
-        if not os.path.exists(self.ytdlp_path) and self.ytdlp_path != "yt-dlp":
-            messagebox.showerror("yt-dlp Missing", f"yt-dlp was not found:\n{self.ytdlp_path}")
-            return
-
-        self.cancel_event.clear()
-        self.cancel_btn.configure(state="normal")
-        self.social_dl_btn.configure(state="disabled", text="Downloading...")
-        self._set_progress(0, "Connecting...")
-        self._show_progress_ui()
-        threading.Thread(target=self._run_social, args=(url,), daemon=True).start()
-
     def _start_local_conversion(self):
         input_file = self.local_file_entry.get().strip()
         if not input_file or not os.path.exists(input_file):
@@ -891,21 +860,6 @@ class CubesAllInOneApp(ctk.CTk):
             self.after(0, lambda: self._on_success("Download Complete!", output_dir))
         else:
             self.after(0, lambda: self._on_error(error))
-
-    def _run_social(self, url):
-        output_dir = self.global_output_dir
-        if self.social_folder_var.get():
-            match = re.search(r'(?:tiktok\.com|instagram\.com)/@?([a-zA-Z0-9_.]+)', url)
-            folder_name = match.group(1) if match else "Social_Download"
-            folder_name = re.sub(r'[<>:"/\\|?*\x00-\x1F]', "_", folder_name)
-            output_dir = os.path.join(output_dir, folder_name)
-        os.makedirs(output_dir, exist_ok=True)
-
-        cmd = [self.ytdlp_path, "--newline", "--no-colors", "--ffmpeg-location", self.bundle_dir,
-               "--cookies-from-browser", "chrome", "--embed-thumbnail", "--add-metadata",
-               "-o", os.path.join(output_dir, "%(title)s.%(ext)s"), url]
-               
-        self._run_subprocess(cmd, "Social", success_msg="Social Download Complete!", out_path=output_dir)
 
     def _run_local_ffmpeg(self, input_file):
         target_ext = self.target_fmt_option.get().split()[0].lower()
