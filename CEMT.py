@@ -62,8 +62,8 @@ class CubesAllInOneApp(ctk.CTk):
         super().__init__()
 
         self.title("CEMT")
-        self.geometry("900x850")
-        self.minsize(850, 750)
+        self.geometry("600x750")
+        self.minsize(600, 750)
         self.configure(fg_color=APP_BG)
 
         self.default_download_dir = os.path.join(os.path.expanduser("~"), "Downloads")
@@ -141,7 +141,7 @@ class CubesAllInOneApp(ctk.CTk):
         ctk.CTkButton(folder_row, text="Browse", width=90, height=38, command=self._browse_global_folder).pack(side="right")
 
         self.tabview = ctk.CTkTabview(
-            self, width=840, height=480, fg_color=CARD_BG,
+            self, width=650, fg_color=CARD_BG,
             segmented_button_fg_color="#0E141B",
             segmented_button_selected_color=ACCENT,
             segmented_button_selected_hover_color=ACCENT_HOVER
