@@ -7,12 +7,17 @@ import sys
 import threading
 import time
 from pathlib import Path
+from datetime import datetime
 from tkinter import filedialog, messagebox
-
 import customtkinter as ctk
 
-# config
+try:
+    from PIL import Image
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
 
+# config
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
@@ -47,16 +52,18 @@ def get_ffmpeg_path():
     bundled = os.path.join(base_dir, "ffmpeg.exe")
     return bundled if os.path.exists(bundled) else "ffmpeg"
 
-# main
+def get_activity_log_path():
+    return os.path.join(os.path.expanduser("~"), ".cemt_activity.json")
 
+# main
 class CubesAllInOneApp(ctk.CTk):
 
     def __init__(self):
         super().__init__()
 
-        self.title("Cubes Epic Media Tools (CEMT)")
-        self.geometry("780x750")
-        self.minsize(700, 750)
+        self.title("CEMT")
+        self.geometry("900x850")
+        self.minsize(850, 750)
         self.configure(fg_color=APP_BG)
 
         self.default_download_dir = os.path.join(os.path.expanduser("~"), "Downloads")
@@ -66,11 +73,6 @@ class CubesAllInOneApp(ctk.CTk):
         self.ytdlp_path = get_ytdlp_path()
         self.ffmpeg_path = get_ffmpeg_path()
 
-        icon_path = os.path.join(self.bundle_dir, "icon.ico")
-        if os.path.exists(icon_path):
-            self.iconbitmap(icon_path)
-            self.after(100, lambda: self.iconbitmap(icon_path))
-            
         self.global_output_dir = self.default_download_dir
 
         self.progress_regex = re.compile(r"(\d+(?:\.\d+)?)%")
@@ -82,8 +84,6 @@ class CubesAllInOneApp(ctk.CTk):
 
         self._build_ui()
         self.after(20, self._animate_progress)
-        
-    # CONFIG PERSISTENCE
 
     def _browse_global_folder(self):
         selected = filedialog.askdirectory(initialdir=self.global_dir_entry.get())
@@ -96,9 +96,8 @@ class CubesAllInOneApp(ctk.CTk):
         path = self.global_dir_entry.get().strip()
         if path:
             self.global_output_dir = path
-        
-        # ui
 
+    # ui
     def _build_ui(self):
         header = ctk.CTkFrame(self, fg_color="transparent")
         header.pack(fill="x", padx=28, pady=(20, 5))
@@ -106,10 +105,21 @@ class CubesAllInOneApp(ctk.CTk):
         title_frame = ctk.CTkFrame(header, fg_color="transparent")
         title_frame.pack(side="left")
 
-        ctk.CTkLabel(title_frame, text="Cubes Epic Media Tools (CEMT)", font=("Segoe UI", 26, "bold"), text_color=TEXT).pack(anchor="w")
-        ctk.CTkLabel(title_frame, text="Version 1.2 by BunchOfCubes", font=("Segoe UI", 12), text_color=SUBTEXT).pack(anchor="w")
+        ctk.CTkLabel(title_frame, text="CEMT", font=("Segoe UI", 26, "bold"), text_color=TEXT).pack(anchor="w")
+        ctk.CTkLabel(title_frame, text="Cubes Epic Media Tools", font=("Segoe UI", 12), text_color=SUBTEXT).pack(anchor="w")
 
-        self.status_dot = ctk.CTkLabel(header, text="● Ready", font=("Segoe UI", 11, "bold"), text_color=GREEN)
+        # Logo Image Space (Main Attraction)
+        if HAS_PIL:
+            logo_path = os.path.join(self.bundle_dir, "logo.png")
+            if os.path.exists(logo_path):
+                try:
+                    logo_img = Image.open(logo_path)
+                    self.logo_image = ctk.CTkImage(light_image=logo_img, dark_image=logo_img, size=(80, 80))
+                    ctk.CTkLabel(header, image=self.logo_image, text="").pack(side="right", padx=10)
+                except Exception:
+                    pass
+
+        self.status_dot = ctk.CTkLabel(header, text="Ready", font=("Segoe UI", 11, "bold"), text_color=GREEN)
         self.status_dot.pack(side="right", pady=8)
 
         # GLOBAL OUTPUT FOLDER
@@ -128,11 +138,10 @@ class CubesAllInOneApp(ctk.CTk):
         self.global_dir_entry = ctk.CTkEntry(folder_row, height=38)
         self.global_dir_entry.insert(0, self.global_output_dir)
         self.global_dir_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-
         ctk.CTkButton(folder_row, text="Browse", width=90, height=38, command=self._browse_global_folder).pack(side="right")
 
         self.tabview = ctk.CTkTabview(
-            self, width=720, height=450, fg_color=CARD_BG,
+            self, width=840, height=480, fg_color=CARD_BG,
             segmented_button_fg_color="#0E141B",
             segmented_button_selected_color=ACCENT,
             segmented_button_selected_hover_color=ACCENT_HOVER
@@ -140,16 +149,20 @@ class CubesAllInOneApp(ctk.CTk):
         self.tabview.pack(fill="both", expand=True, padx=28, pady=(12, 10))
 
         self.tab_web = self.tabview.add("Web Downloader")
+        self.tab_social = self.tabview.add("Social")
         self.tab_converter = self.tabview.add("File Converter")
         self.tab_gif = self.tabview.add("GIF Converter")
         self.tab_spotify = self.tabview.add("Spotify")
         self.tab_soundcloud = self.tabview.add("SoundCloud")
+        self.tab_activity = self.tabview.add("Activity")
 
         self._build_web_tab()
+        self._build_social_tab()
         self._build_converter_tab()
         self._build_gif_tab()
         self._build_spotify_tab()
         self._build_soundcloud_tab()
+        self._build_activity_tab()
         self._build_bottom_progress()
 
     def _card(self, parent):
@@ -185,27 +198,6 @@ class CubesAllInOneApp(ctk.CTk):
     def _hide_progress_ui(self):
         self.bottom_progress_frame.pack_forget()
 
-    def _build_folder_selector(self, parent, title, default, entry_name):
-        frame = ctk.CTkFrame(parent, fg_color="transparent")
-        frame.pack(fill="x", padx=18, pady=5)
-        self._label(frame, title, bold=True).pack(anchor="w", pady=(0, 5))
-        
-        row = ctk.CTkFrame(frame, fg_color="transparent")
-        row.pack(fill="x")
-        
-        entry = ctk.CTkEntry(row, height=38)
-        entry.insert(0, default)
-        entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        
-        ctk.CTkButton(row, text="Browse", width=90, height=38, command=lambda: self._browse_folder(entry)).pack(side="right")
-        setattr(self, entry_name, entry)
-
-    def _browse_folder(self, entry_widget):
-        selected = filedialog.askdirectory(initialdir=entry_widget.get())
-        if selected:
-            entry_widget.delete(0, "end")
-            entry_widget.insert(0, selected)
-
     def _cancel_action(self):
         self.cancel_event.set()
         self.progress_status.configure(text="Cancelling...")
@@ -229,6 +221,7 @@ class CubesAllInOneApp(ctk.CTk):
         self.cancel_event.clear()
         self.cancel_btn.configure(state="disabled")
         self.web_dl_btn.configure(state="normal", text="Download Media")
+        self.social_dl_btn.configure(state="normal", text="Download Social Media")
         self.convert_btn.configure(state="normal", text="Convert File")
         self.gif_convert_btn.configure(state="normal", text="Convert Video → GIF")
         self.spotify_btn.configure(state="normal", text="Match & Download MP3s")
@@ -236,7 +229,6 @@ class CubesAllInOneApp(ctk.CTk):
         self._hide_progress_ui()
 
     # env n http
-
     def _get_process_env(self):
         env = os.environ.copy()
         env["PATH"] = self.bundle_dir + os.path.pathsep + env.get("PATH", "")
@@ -247,9 +239,63 @@ class CubesAllInOneApp(ctk.CTk):
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Accept-Language": "en-US,en;q=0.9"})
         with urllib.request.urlopen(req, timeout=timeout) as response:
             return response.read().decode("utf-8", errors="replace")
-        
-    # SPOTIFY PLEASE
 
+    # activity
+    def log_activity(self, title, url, activity_type):
+        log_path = get_activity_log_path()
+        entry = {
+            "title": title[:100],
+            "url": url[:200],
+            "type": activity_type,
+            "date": datetime.now().strftime("%Y-%m-%d %H:%M")
+        }
+        try:
+            if os.path.exists(log_path):
+                with open(log_path, 'r') as f:
+                    data = json.load(f)
+            else:
+                data = []
+            data.insert(0, entry)
+            data = data[:500] # Keep only last 500 entries to save storage
+            with open(log_path, 'w') as f:
+                json.dump(data, f, indent=2)
+        except Exception:
+            pass
+
+    def _load_activity(self):
+        for widget in self.activity_frame.winfo_children():
+            widget.destroy()
+            
+        log_path = get_activity_log_path()
+        if not os.path.exists(log_path):
+            ctk.CTkLabel(self.activity_frame, text="No activity yet. Start downloading!", font=("Segoe UI", 14), text_color=SUBTEXT).pack(pady=40)
+            return
+
+        try:
+            with open(log_path, 'r') as f:
+                data = json.load(f)
+        except Exception:
+            data = []
+
+        if not data:
+            ctk.CTkLabel(self.activity_frame, text="No activity yet.", font=("Segoe UI", 14), text_color=SUBTEXT).pack(pady=40)
+            return
+
+        for item in data:
+            row = ctk.CTkFrame(self.activity_frame, fg_color="transparent")
+            row.pack(fill="x", pady=5, padx=5)
+            ctk.CTkLabel(row, text=f"[{item['type']}] {item['title']}", font=("Segoe UI", 12, "bold"), text_color=TEXT, anchor="w").pack(fill="x")
+            ctk.CTkLabel(row, text=f"{item['date']}  •  {item['url']}", font=("Segoe UI", 11), text_color=SUBTEXT, anchor="w").pack(fill="x")
+            ctk.CTkFrame(self.activity_frame, height=1, fg_color=BORDER).pack(fill="x", pady=2)
+
+    def _clear_activity(self):
+        if messagebox.askyesno("Clear History", "Are you sure you want to clear all activity history?"):
+            log_path = get_activity_log_path()
+            if os.path.exists(log_path):
+                os.remove(log_path)
+            self._load_activity()
+
+    # SPOTIFY PLEASE
     def _get_spotify_cover_url(self, data):
         cover_art = self._find_key_recursive(data, "coverArt")
         if cover_art and isinstance(cover_art, dict):
@@ -435,7 +481,6 @@ class CubesAllInOneApp(ctk.CTk):
         return value[:180] or "Untitled"
     
     # match spotify with youtube thing
-
     def _normalize_search_text(self, value):
         value = value.lower()
         value = re.sub(r"\([^)]*\)", " ", value)
@@ -542,8 +587,7 @@ class CubesAllInOneApp(ctk.CTk):
             
         self.after(0, create_dialog)
 
-    # Souncloud
-
+    # Soundcloud
     def _fetch_soundcloud_data(self, url):
         cmd = [self.ytdlp_path, "--dump-single-json", "--no-download", "--no-warnings", url]
         try:
@@ -581,17 +625,19 @@ class CubesAllInOneApp(ctk.CTk):
         except Exception as e:
             raise RuntimeError(f"Failed to parse SoundCloud data: {str(e)}")
 
+    # tabs
     def _build_web_tab(self):
         card = self._card(self.tab_web)
         self._label(card, "MEDIA URL (youtube, tiktok, bilibili, instagram, twitch, vimeo, etc)", bold=True).pack(anchor="w", padx=15, pady=(15, 5))
-        self.web_url_entry = ctk.CTkEntry(card, height=38, placeholder_text="Paste a video or audio URL...")
+        self.web_url_entry = ctk.CTkEntry(card, height=38, placeholder_text="Paste a video or audio URL")
         self.web_url_entry.pack(fill="x", padx=15, pady=(0, 15))
 
         options = ctk.CTkFrame(card, fg_color="transparent")
         options.pack(fill="x", padx=15, pady=5)
 
         self._label(options, "FORMAT", bold=True).grid(row=0, column=0, sticky="w", pady=(0, 5))
-        self.web_fmt_option = ctk.CTkOptionMenu(options, values=["MP4 (Video)", "MP3 (Audio Only)", "WAV (Audio)", "BEST (Original)"], width=220, command=self._toggle_web_quality_state)
+        self.web_fmt_option = ctk.CTkOptionMenu(options, values=["BEST (Original)", "MP4 (Video)", "MP3 (Audio Only)", "WAV (Audio)"], width=220, command=self._toggle_web_quality_state)
+        self.web_fmt_option.set("BEST (Original)") # Default format
         self.web_fmt_option.grid(row=1, column=0, padx=(0, 20))
 
         self._label(options, "MAX QUALITY", bold=True).grid(row=0, column=1, sticky="w", pady=(0, 5))
@@ -601,36 +647,19 @@ class CubesAllInOneApp(ctk.CTk):
         self.web_dl_btn = ctk.CTkButton(self.tab_web, text="Download Media", height=46, corner_radius=12, font=("Segoe UI", 13, "bold"), fg_color=ACCENT, hover_color=ACCENT_HOVER, command=self._start_web_download)
         self.web_dl_btn.pack(fill="x", padx=18, pady=14)
 
-    def _toggle_web_quality_state(self, choice):
-        self.web_quality_option.configure(state="disabled" if "MP3" in choice or "WAV" in choice else "normal")
+    def _build_social_tab(self):
+        card = self._card(self.tab_social)
+        self._label(card, "TIKTOK / INSTAGRAM URL", bold=True).pack(anchor="w", padx=15, pady=(15, 5))
+        self.social_url_entry = ctk.CTkEntry(card, height=38, placeholder_text="Paste a Tiktok or Instagram URL")
+        self.social_url_entry.pack(fill="x", padx=15, pady=(0, 15))
 
-    def _start_web_download(self):
-        url = self.web_url_entry.get().strip()
-        if not url:
-            messagebox.showwarning("Missing URL", "Enter a media URL first.")
-            return
-        if not os.path.exists(self.ytdlp_path) and self.ytdlp_path != "yt-dlp":
-            messagebox.showerror("yt-dlp Missing", f"yt-dlp was not found:\n{self.ytdlp_path}")
-            return
+        self.social_folder_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(card, text="Save into a dedicated user folder", variable=self.social_folder_var).pack(anchor="w", padx=15, pady=5)
+        
+        self._label(card, "This is made for Converting Public Likes/Favourites/Reposts. You can use the web downloader for standalone videos too.", size=11, color="#8B98A8").pack(anchor="w", padx=15, pady=(5, 10))
 
-        self.cancel_event.clear()
-        self.cancel_btn.configure(state="normal")
-        self.web_dl_btn.configure(state="disabled", text="Downloading...")
-        self._set_progress(0, "Connecting...")
-        self._show_progress_ui()
-        threading.Thread(target=self._run_ytdlp, args=(url,), daemon=True).start()
-
-    def _run_ytdlp(self, target):
-        output_dir = self.global_output_dir
-        success, error = self._execute_ytdlp_cmd(target, is_audio_only=False, output_dir=output_dir)
-        if self.cancel_event.is_set():
-            self.after(0, self._on_error, "Download cancelled by user.")
-        elif success:
-            self.after(0, lambda: self._on_success("Download Complete!", output_dir))
-        else:
-            self.after(0, lambda: self._on_error(error))
-
-    # local convereter
+        self.social_dl_btn = ctk.CTkButton(self.tab_social, text="Download Social Media", height=46, corner_radius=12, font=("Segoe UI", 13, "bold"), fg_color="#fe2c55", hover_color="#e0264a", command=self._start_social_download)
+        self.social_dl_btn.pack(fill="x", padx=18, pady=14)
 
     def _build_converter_tab(self):
         card = self._card(self.tab_converter)
@@ -648,61 +677,6 @@ class CubesAllInOneApp(ctk.CTk):
 
         self.convert_btn = ctk.CTkButton(self.tab_converter, text="Convert File", height=46, corner_radius=12, font=("Segoe UI", 13, "bold"), fg_color=GREEN, hover_color=GREEN_HOVER, command=self._start_local_conversion)
         self.convert_btn.pack(fill="x", padx=18, pady=15)
-
-    def _select_local_file(self):
-        file_path = filedialog.askopenfilename(title="Select File", filetypes=[("All Files", "*.*")])
-        if file_path:
-            self.local_file_entry.delete(0, "end")
-            self.local_file_entry.insert(0, file_path)
-
-    def _start_local_conversion(self):
-        input_file = self.local_file_entry.get().strip()
-        if not input_file or not os.path.exists(input_file):
-            messagebox.showwarning("Missing File", "Please select a valid file.")
-            return
-
-        self.cancel_event.clear()
-        self.cancel_btn.configure(state="normal")
-        self.convert_btn.configure(state="disabled", text="Converting...")
-        self._set_progress(0, "Starting FFmpeg...")
-        self._show_progress_ui()
-        threading.Thread(target=self._run_local_ffmpeg, args=(input_file,), daemon=True).start()
-
-    def _run_local_ffmpeg(self, input_file):
-        target_ext = self.target_fmt_option.get().split()[0].lower()
-        output_dir = self.global_output_dir
-        os.makedirs(output_dir, exist_ok=True)
-        output_file = os.path.join(output_dir, os.path.splitext(os.path.basename(input_file))[0] + "_converted." + target_ext)
-
-        cmd = [self.ffmpeg_path, "-y", "-i", input_file, output_file]
-        try:
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW if os.name == "nt" else 0
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=self._get_process_env(), startupinfo=startupinfo)
-            
-            output_lines = []
-            while True:
-                if self.cancel_event.is_set():
-                    process.terminate()
-                    try: process.wait(timeout=2)
-                    except subprocess.TimeoutExpired: process.kill()
-                    self.after(0, self._on_error, "Conversion cancelled by user.")
-                    return
-                
-                line = process.stdout.readline()
-                if not line and process.poll() is not None: break
-                if line: output_lines.append(line)
-                    
-            if self.cancel_event.is_set(): return
-                
-            if process.returncode == 0:
-                self.after(0, lambda: self._on_success("Conversion Complete!", output_file))
-            else:
-                self.after(0, lambda: self._on_error("".join(output_lines)[-2000:] or "FFmpeg conversion failed."))
-        except Exception as e:
-            self.after(0, lambda: self._on_error(str(e)))
-
-    # alengif
 
     def _build_gif_tab(self):
         card = self._card(self.tab_gif)
@@ -738,73 +712,10 @@ class CubesAllInOneApp(ctk.CTk):
         self.gif_convert_btn = ctk.CTkButton(self.tab_gif, text="Convert Video → GIF", height=46, corner_radius=12, font=("Segoe UI", 13, "bold"), fg_color=ACCENT, hover_color=ACCENT_HOVER, command=self._start_gif_conversion)
         self.gif_convert_btn.pack(fill="x", padx=18, pady=15)
 
-    def _select_gif_input(self):
-        path = filedialog.askopenfilename(title="Select Video", filetypes=[("Video Files", "*.mp4 *.mkv *.avi *.mov *.webm *.wmv *.flv"), ("All Files", "*.*")])
-        if path:
-            self.gif_input.delete(0, "end")
-            self.gif_input.insert(0, path)
-
-    def _start_gif_conversion(self):
-        input_file = self.gif_input.get().strip()
-        if not input_file or not os.path.exists(input_file):
-            messagebox.showwarning("Missing Video", "Please select a valid video.")
-            return
-
-        self.cancel_event.clear()
-        self.cancel_btn.configure(state="normal")
-        self.gif_convert_btn.configure(state="disabled", text="Creating GIF...")
-        self._set_progress(0, "Preparing GIF conversion...")
-        self._show_progress_ui()
-        threading.Thread(target=self._run_gif_conversion, args=(input_file,), daemon=True).start()
-
-    def _run_gif_conversion(self, input_file):
-        fps = int(self.gif_fps.get())
-        width = self.gif_width.get()
-        quality = self.gif_quality.get()
-        
-        colors = 64 if quality == "Low" else 128 if quality == "Medium" else 256 if quality == "Very High" else 192
-        scale = f"fps={fps},split[s0][s1];[s0]palettegen=max_colors={colors}:stats_mode=diff[p];[s1][p]paletteuse=dither=sierra2_4a"
-        if width != "Original":
-            scale = f"fps={fps},scale={width}:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors={colors}:stats_mode=diff[p];[s1][p]paletteuse=dither=sierra2_4a"
-
-        output_dir = self.global_output_dir
-        os.makedirs(output_dir, exist_ok=True)
-        output_file = os.path.join(output_dir, os.path.splitext(os.path.basename(input_file))[0] + ".gif")
-
-        cmd = [self.ffmpeg_path, "-y", "-i", input_file, "-vf", scale, "-loop", "0" if self.gif_loop.get() else "-1", output_file]
-        try:
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW if os.name == "nt" else 0
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=self._get_process_env(), startupinfo=startupinfo)
-            
-            output_lines = []
-            while True:
-                if self.cancel_event.is_set():
-                    process.terminate()
-                    try: process.wait(timeout=2)
-                    except subprocess.TimeoutExpired: process.kill()
-                    self.after(0, self._on_error, "GIF creation cancelled by user.")
-                    return
-                
-                line = process.stdout.readline()
-                if not line and process.poll() is not None: break
-                if line:
-                    output_lines.append(line)
-                    self._set_progress(min(95, self.displayed_progress + 0.25), "Encoding GIF...")
-                    
-            if self.cancel_event.is_set(): return
-                
-            if process.returncode == 0:
-                self.after(0, lambda: self._on_success("GIF Created!", output_file))
-            else:
-                self.after(0, lambda: self._on_error("".join(output_lines)[-2000:]))
-        except Exception as e:
-            self.after(0, lambda: self._on_error(str(e)))
-
     def _build_spotify_tab(self):
         card = self._card(self.tab_spotify)
         self._label(card, "PUBLIC SPOTIFY TRACK / PLAYLIST / ALBUM / ARTIST", bold=True).pack(anchor="w", padx=15, pady=(15, 5))
-        self.spotify_entry = ctk.CTkEntry(card, height=38, placeholder_text="Paste a public Spotify track, playlist, album, artist, or search a song...")
+        self.spotify_entry = ctk.CTkEntry(card, height=38, placeholder_text="Paste a public Spotify track, playlist, album, artist")
         self.spotify_entry.pack(fill="x", padx=15, pady=(0, 15))
 
         options_row = ctk.CTkFrame(self.tab_spotify, fg_color="transparent")
@@ -829,26 +740,10 @@ class CubesAllInOneApp(ctk.CTk):
         self.spotify_btn = ctk.CTkButton(self.tab_spotify, text="Match & Download MP3s", height=46, corner_radius=12, font=("Segoe UI", 13, "bold"), fg_color=SPOTIFY, hover_color=SPOTIFY_HOVER, command=self._start_spotify_download)
         self.spotify_btn.pack(fill="x", padx=18, pady=14)
 
-    def _start_spotify_download(self):
-        query = self.spotify_entry.get().strip()
-        if not query:
-            messagebox.showwarning("Missing Input", "Enter a Spotify track, playlist, album, artist, or song name.")
-            return
-        if not os.path.exists(self.ytdlp_path) and self.ytdlp_path != "yt-dlp":
-            messagebox.showerror("yt-dlp Missing", f"yt-dlp was not found:\n{self.ytdlp_path}")
-            return
-
-        self.cancel_event.clear()
-        self.cancel_btn.configure(state="normal")
-        self.spotify_btn.configure(state="disabled", text="Preparing...")
-        self._set_progress(0, "Reading Spotify metadata...")
-        self._show_progress_ui()
-        threading.Thread(target=self._process_spotify_queue, args=(query, True), daemon=True).start()
-
     def _build_soundcloud_tab(self):
         card = self._card(self.tab_soundcloud)
         self._label(card, "SOUNDCLOUD TRACK OR PLAYLIST URL", bold=True).pack(anchor="w", padx=15, pady=(15, 5))
-        self.soundcloud_entry = ctk.CTkEntry(card, height=38, placeholder_text="Paste a SoundCloud track or playlist URL...")
+        self.soundcloud_entry = ctk.CTkEntry(card, height=38, placeholder_text="Paste a SoundCloud track or playlist URL")
         self.soundcloud_entry.pack(fill="x", padx=15, pady=(0, 15))
 
         options_row = ctk.CTkFrame(self.tab_soundcloud, fg_color="transparent")
@@ -868,6 +763,108 @@ class CubesAllInOneApp(ctk.CTk):
         self.soundcloud_btn = ctk.CTkButton(self.tab_soundcloud, text="Match & Download MP3s", height=46, corner_radius=12, font=("Segoe UI", 13, "bold"), fg_color=SOUNDCLOUD, hover_color=SOUNDCLOUD_HOVER, command=self._start_soundcloud_download)
         self.soundcloud_btn.pack(fill="x", padx=18, pady=14)
 
+    def _build_activity_tab(self):
+        self.activity_frame = ctk.CTkScrollableFrame(self.tab_activity, fg_color=CARD_BG_2, corner_radius=14, border_width=1, border_color=BORDER)
+        self.activity_frame.pack(fill="both", expand=True, padx=18, pady=8)
+        
+        btn_frame = ctk.CTkFrame(self.tab_activity, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=18, pady=(0, 10))
+        
+        ctk.CTkButton(btn_frame, text="Refresh History", width=120, height=32, command=self._load_activity).pack(side="left")
+        ctk.CTkButton(btn_frame, text="Clear History", width=120, height=32, fg_color=RED, hover_color="#DC2626", command=self._clear_activity).pack(side="right")
+        
+        self._load_activity()
+
+    # stuff
+    def _toggle_web_quality_state(self, choice):
+        self.web_quality_option.configure(state="disabled" if "MP3" in choice or "WAV" in choice else "normal")
+
+    def _select_local_file(self):
+        file_path = filedialog.askopenfilename(title="Select File", filetypes=[("All Files", "*.*")])
+        if file_path:
+            self.local_file_entry.delete(0, "end")
+            self.local_file_entry.insert(0, file_path)
+
+    def _select_gif_input(self):
+        path = filedialog.askopenfilename(title="Select Video", filetypes=[("Video Files", "*.mp4 *.mkv *.avi *.mov *.webm *.wmv *.flv"), ("All Files", "*.*")])
+        if path:
+            self.gif_input.delete(0, "end")
+            self.gif_input.insert(0, path)
+
+    def _start_web_download(self):
+        url = self.web_url_entry.get().strip()
+        if not url:
+            messagebox.showwarning("Missing URL", "Enter a media URL first.")
+            return
+        if not os.path.exists(self.ytdlp_path) and self.ytdlp_path != "yt-dlp":
+            messagebox.showerror("yt-dlp Missing", f"yt-dlp was not found:\n{self.ytdlp_path}")
+            return
+
+        self.cancel_event.clear()
+        self.cancel_btn.configure(state="normal")
+        self.web_dl_btn.configure(state="disabled", text="Downloading...")
+        self._set_progress(0, "Connecting...")
+        self._show_progress_ui()
+        threading.Thread(target=self._run_ytdlp, args=(url,), daemon=True).start()
+
+    def _start_social_download(self):
+        url = self.social_url_entry.get().strip()
+        if not url:
+            messagebox.showwarning("Missing URL", "Enter a social media URL first.")
+            return
+        if not os.path.exists(self.ytdlp_path) and self.ytdlp_path != "yt-dlp":
+            messagebox.showerror("yt-dlp Missing", f"yt-dlp was not found:\n{self.ytdlp_path}")
+            return
+
+        self.cancel_event.clear()
+        self.cancel_btn.configure(state="normal")
+        self.social_dl_btn.configure(state="disabled", text="Downloading...")
+        self._set_progress(0, "Connecting...")
+        self._show_progress_ui()
+        threading.Thread(target=self._run_social, args=(url,), daemon=True).start()
+
+    def _start_local_conversion(self):
+        input_file = self.local_file_entry.get().strip()
+        if not input_file or not os.path.exists(input_file):
+            messagebox.showwarning("Missing File", "Please select a valid file.")
+            return
+
+        self.cancel_event.clear()
+        self.cancel_btn.configure(state="normal")
+        self.convert_btn.configure(state="disabled", text="Converting...")
+        self._set_progress(0, "Starting FFmpeg...")
+        self._show_progress_ui()
+        threading.Thread(target=self._run_local_ffmpeg, args=(input_file,), daemon=True).start()
+
+    def _start_gif_conversion(self):
+        input_file = self.gif_input.get().strip()
+        if not input_file or not os.path.exists(input_file):
+            messagebox.showwarning("Missing Video", "Please select a valid video.")
+            return
+
+        self.cancel_event.clear()
+        self.cancel_btn.configure(state="normal")
+        self.gif_convert_btn.configure(state="disabled", text="Creating GIF...")
+        self._set_progress(0, "Preparing GIF conversion...")
+        self._show_progress_ui()
+        threading.Thread(target=self._run_gif_conversion, args=(input_file,), daemon=True).start()
+
+    def _start_spotify_download(self):
+        query = self.spotify_entry.get().strip()
+        if not query:
+            messagebox.showwarning("Missing Input", "Enter a Spotify track, playlist, album, artist, or song name.")
+            return
+        if not os.path.exists(self.ytdlp_path) and self.ytdlp_path != "yt-dlp":
+            messagebox.showerror("yt-dlp Missing", f"yt-dlp was not found:\n{self.ytdlp_path}")
+            return
+
+        self.cancel_event.clear()
+        self.cancel_btn.configure(state="normal")
+        self.spotify_btn.configure(state="disabled", text="Preparing...")
+        self._set_progress(0, "Reading Spotify metadata...")
+        self._show_progress_ui()
+        threading.Thread(target=self._process_spotify_queue, args=(query, True), daemon=True).start()
+
     def _start_soundcloud_download(self):
         query = self.soundcloud_entry.get().strip()
         if not query:
@@ -884,15 +881,174 @@ class CubesAllInOneApp(ctk.CTk):
         self._show_progress_ui()
         threading.Thread(target=self._process_soundcloud_queue, args=(query,), daemon=True).start()
 
-    # download
+    def _run_ytdlp(self, target):
+        output_dir = self.global_output_dir
+        success, error = self._execute_ytdlp_cmd(target, is_audio_only=False, output_dir=output_dir)
+        if self.cancel_event.is_set():
+            self.after(0, self._on_error, "Download cancelled by user.")
+        elif success:
+            self.log_activity(os.path.basename(target), target, "Web")
+            self.after(0, lambda: self._on_success("Download Complete!", output_dir))
+        else:
+            self.after(0, lambda: self._on_error(error))
 
+    def _run_social(self, url):
+        output_dir = self.global_output_dir
+        if self.social_folder_var.get():
+            match = re.search(r'(?:tiktok\.com|instagram\.com)/@?([a-zA-Z0-9_.]+)', url)
+            folder_name = match.group(1) if match else "Social_Download"
+            folder_name = re.sub(r'[<>:"/\\|?*\x00-\x1F]', "_", folder_name)
+            output_dir = os.path.join(output_dir, folder_name)
+        os.makedirs(output_dir, exist_ok=True)
+
+        cmd = [self.ytdlp_path, "--newline", "--no-colors", "--ffmpeg-location", self.bundle_dir,
+               "--cookies-from-browser", "chrome", "--embed-thumbnail", "--add-metadata",
+               "-o", os.path.join(output_dir, "%(title)s.%(ext)s"), url]
+               
+        self._run_subprocess(cmd, "Social", success_msg="Social Download Complete!", out_path=output_dir)
+
+    def _run_local_ffmpeg(self, input_file):
+        target_ext = self.target_fmt_option.get().split()[0].lower()
+        output_dir = self.global_output_dir
+        os.makedirs(output_dir, exist_ok=True)
+        output_file = os.path.join(output_dir, os.path.splitext(os.path.basename(input_file))[0] + "_converted." + target_ext)
+
+        cmd = [self.ffmpeg_path, "-y", "-i", input_file, output_file]
+        self._run_subprocess(cmd, "Converter", success_msg="Conversion Complete!", out_path=output_file)
+
+    def _run_gif_conversion(self, input_file):
+        fps = int(self.gif_fps.get())
+        width = self.gif_width.get()
+        quality = self.gif_quality.get()
+        
+        colors = 64 if quality == "Low" else 128 if quality == "Medium" else 256 if quality == "Very High" else 192
+        scale = f"fps={fps},split[s0][s1];[s0]palettegen=max_colors={colors}:stats_mode=diff[p];[s1][p]paletteuse=dither=sierra2_4a"
+        if width != "Original":
+            scale = f"fps={fps},scale={width}:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors={colors}:stats_mode=diff[p];[s1][p]paletteuse=dither=sierra2_4a"
+
+        output_dir = self.global_output_dir
+        os.makedirs(output_dir, exist_ok=True)
+        output_file = os.path.join(output_dir, os.path.splitext(os.path.basename(input_file))[0] + ".gif")
+
+        cmd = [self.ffmpeg_path, "-y", "-i", input_file, "-vf", scale, "-loop", "0" if self.gif_loop.get() else "-1", output_file]
+        self._run_subprocess(cmd, "GIF", success_msg="GIF Created!", out_path=output_file)
+
+    def _run_subprocess(self, cmd, activity_type, success_msg="Complete!", out_path=None):
+        try:
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW if os.name == "nt" else 0
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=self._get_process_env(), startupinfo=startupinfo)
+            
+            output_lines = []
+            while True:
+                if self.cancel_event.is_set():
+                    process.terminate()
+                    try: process.wait(timeout=2)
+                    except subprocess.TimeoutExpired: process.kill()
+                    self.after(0, self._on_error, "Conversion cancelled by user.")
+                    return
+                
+                line = process.stdout.readline()
+                if not line and process.poll() is not None: break
+                if line: output_lines.append(line)
+                    
+            if self.cancel_event.is_set(): return
+                
+            if process.returncode == 0:
+                if out_path: self.log_activity(os.path.basename(out_path), out_path, activity_type)
+                self.after(0, lambda: self._on_success(success_msg, out_path or self.global_output_dir))
+            else:
+                self.after(0, lambda: self._on_error("".join(output_lines)[-2000:] or "FFmpeg conversion failed."))
+        except Exception as e:
+            self.after(0, lambda: self._on_error(str(e)))
+
+    def _execute_ytdlp_cmd(self, target, is_audio_only, output_dir=None, output_template=None, progress_callback=None, extra_args=None):
+        output_dir = output_dir or self.global_output_dir
+        os.makedirs(output_dir, exist_ok=True)
+
+        cmd = [self.ytdlp_path, "--newline", "--no-colors", "--ffmpeg-location", self.bundle_dir]
+        if output_template:
+            cmd.extend(["-o", output_template])
+        else:
+            cmd.extend(["-P", output_dir, "-o", "%(title)s.%(ext)s"])
+            
+        if is_audio_only:
+            cmd.extend(["-x", "--audio-format", "mp3", "--audio-quality", "0", "--embed-thumbnail", "--add-metadata"])
+        else:
+            fmt = self.web_fmt_option.get()
+            quality = self.web_quality_option.get()
+            if "MP3" in fmt:
+                cmd.extend(["-x", "--audio-format", "mp3", "--audio-quality", "0", "--embed-thumbnail", "--add-metadata"])
+            elif "WAV" in fmt:
+                cmd.extend(["-x", "--audio-format", "wav", "--add-metadata"])
+            elif "MP4" in fmt:
+                if quality == "2160p (4K)": format_str = "bestvideo[height<=2160]+bestaudio/best"
+                elif quality == "1080p (FHD)": format_str = "bestvideo[height<=1080]+bestaudio/best"
+                elif quality == "720p (HD)": format_str = "bestvideo[height<=720]+bestaudio/best"
+                elif quality == "480p (SD)": format_str = "bestvideo[height<=480]+bestaudio/best[height<=480]"
+                elif quality == "360p (Low)": format_str = "bestvideo[height<=360]+bestaudio/best[height<=360]"
+                else: format_str = "bestvideo+bestaudio/best"
+                cmd.extend(["-f", format_str, "--remux-video", "mp4", "--embed-thumbnail", "--add-metadata"])
+
+        if extra_args:
+            cmd.extend(extra_args)
+        cmd.append(target)
+
+        try:
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW if os.name == "nt" else 0
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, env=self._get_process_env(), startupinfo=startupinfo)
+
+            log_output, buffer = [], ""
+            while True:
+                if self.cancel_event.is_set():
+                    process.terminate()
+                    try: process.wait(timeout=2)
+                    except subprocess.TimeoutExpired: process.kill()
+                    return False, "Cancelled by user"
+
+                char = process.stdout.read(1)
+                if not char and process.poll() is not None:
+                    break
+
+                if char in ("\r", "\n"):
+                    line = self.ansi_escape.sub("", buffer).strip()
+                    buffer = ""
+                    if line:
+                        log_output.append(line)
+                    if "[download]" in line:
+                        match = self.progress_regex.search(line)
+                        if match:
+                            try:
+                                val = float(match.group(1))
+                                if progress_callback:
+                                    progress_callback(val)
+                                else:
+                                    self._set_progress(val, f"Downloading: {val:.1f}%")
+                            except ValueError:
+                                pass
+                else:
+                    buffer += char
+
+            process.wait()
+            if self.cancel_event.is_set():
+                return False, "Cancelled by user"
+                
+            if process.returncode == 0:
+                return True, None
+                
+            error = "\n".join(log_output[-20:]) if log_output else "yt-dlp exited with an error."
+            return False, error
+        except Exception as e:
+            return False, str(e)
+
+    # download
     def _process_download_queue(self, tracks, collection_name, is_spotify=True):
         try:
             if not tracks:
                 raise RuntimeError("No track metadata was found.")
 
             output_dir = os.path.abspath(os.path.expanduser(self.global_output_dir))
-            
             playlist_folder_var = self.spotify_playlist_folder if is_spotify else self.soundcloud_playlist_folder
             if collection_name and playlist_folder_var.get():
                 output_dir = os.path.join(output_dir, self._safe_filename(collection_name))
@@ -991,8 +1147,8 @@ class CubesAllInOneApp(ctk.CTk):
                     time.sleep(1.5)
 
                 if success and not self.cancel_event.is_set():
-                    # yt-dlp now handles thumbnail and metadata embedding natively
                     succeeded += 1
+                    self.log_activity(track.get("title", "Unknown"), track.get("url", ""), "Spotify" if is_spotify else "SoundCloud")
                 elif not self.cancel_event.is_set():
                     failed.append({"track": track.get("query") or track["title"], "error": last_error or "Unknown download error."})
 
@@ -1035,100 +1191,11 @@ class CubesAllInOneApp(ctk.CTk):
         except Exception as e:
             self.after(0, self._on_error, str(e))
 
-    def _execute_ytdlp_cmd(self, target, is_audio_only, output_dir=None, output_template=None, progress_callback=None, extra_args=None):
-        output_dir = output_dir or self.global_output_dir
-        os.makedirs(output_dir, exist_ok=True)
-
-        cmd = [self.ytdlp_path, "--newline", "--no-colors", "--ffmpeg-location", self.bundle_dir]
-        if output_template:
-            cmd.extend(["-o", output_template])
-        else:
-            cmd.extend(["-P", output_dir, "-o", "%(title)s.%(ext)s"])
-            
-        if is_audio_only:
-            # NATIVE YOUTUBE THUMBNAIL & METADATA EMBEDDING
-            cmd.extend(["-x", "--audio-format", "mp3", "--audio-quality", "0", "--embed-thumbnail", "--add-metadata"])
-        else:
-            fmt = self.web_fmt_option.get()
-            quality = self.web_quality_option.get()
-            if "MP3" in fmt:
-                cmd.extend(["-x", "--audio-format", "mp3", "--audio-quality", "0", "--embed-thumbnail", "--add-metadata"])
-            elif "WAV" in fmt:
-                cmd.extend(["-x", "--audio-format", "wav", "--add-metadata"])
-            elif "MP4" in fmt:
-                if quality == "2160p (4K)": 
-                    format_str = "bestvideo[height<=2160]+bestaudio/best"
-                elif quality == "1080p (FHD)": 
-                    format_str = "bestvideo[height<=1080]+bestaudio/best"
-                elif quality == "720p (HD)": 
-                    format_str = "bestvideo[height<=720]+bestaudio/best"
-                elif quality == "480p (SD)": 
-                    format_str = "bestvideo[height<=480]+bestaudio/best[height<=480]"
-                elif quality == "360p (Low)": 
-                    format_str = "bestvideo[height<=360]+bestaudio/best[height<=360]"
-                else: 
-                    format_str = "bestvideo+bestaudio/best"
-                cmd.extend(["-f", format_str, "--remux-video", "mp4"])
-
-        if extra_args:
-            cmd.extend(extra_args)
-        cmd.append(target)
-
-        try:
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW if os.name == "nt" else 0
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, env=self._get_process_env(), startupinfo=startupinfo)
-
-            log_output, buffer = [], ""
-            while True:
-                if self.cancel_event.is_set():
-                    process.terminate()
-                    try: process.wait(timeout=2)
-                    except subprocess.TimeoutExpired: process.kill()
-                    return False, "Cancelled by user"
-
-                char = process.stdout.read(1)
-                if not char and process.poll() is not None:
-                    break
-
-                if char in ("\r", "\n"):
-                    line = self.ansi_escape.sub("", buffer).strip()
-                    buffer = ""
-                    if line:
-                        log_output.append(line)
-                    if "[download]" in line:
-                        match = self.progress_regex.search(line)
-                        if match:
-                            try:
-                                val = float(match.group(1))
-                                if progress_callback:
-                                    progress_callback(val)
-                                else:
-                                    self._set_progress(val, f"Downloading: {val:.1f}%")
-                            except ValueError:
-                                pass
-                else:
-                    buffer += char
-
-            process.wait()
-            if self.cancel_event.is_set():
-                return False, "Cancelled by user"
-                
-            if process.returncode == 0:
-                return True, None
-                
-            error = "\n".join(log_output[-20:]) if log_output else "yt-dlp exited with an error."
-            return False, error
-        except Exception as e:
-            return False, str(e)
-
-        
-    # are you error or are you succeed
-
+    # error/success thingy
     def _on_download_success(self, succeeded, total, output_dir, failed, is_spotify):
         self._reset_buttons()
         self._set_progress(100, f"Finished {succeeded}/{total}")
-        self.status_dot.configure(text="● Complete", text_color=GREEN)
+        self.status_dot.configure(text="Complete", text_color=GREEN)
 
         platform_name = "Spotify" if is_spotify else "SoundCloud"
         if failed:
@@ -1147,7 +1214,7 @@ class CubesAllInOneApp(ctk.CTk):
     def _on_success(self, message, path):
         self._reset_buttons()
         self._set_progress(100, message)
-        self.status_dot.configure(text="● Complete", text_color=GREEN)
+        self.status_dot.configure(text="Complete", text_color=GREEN)
         if os.path.exists(path):
             try:
                 if os.path.isfile(path):
@@ -1159,7 +1226,7 @@ class CubesAllInOneApp(ctk.CTk):
     def _on_error(self, error):
         self._reset_buttons()
         self._set_progress(0, "Action failed")
-        self.status_dot.configure(text="● Error", text_color=RED)
+        self.status_dot.configure(text="Error", text_color=RED)
         messagebox.showerror("Execution Error", "An error occurred:\n\n" + str(error)[:3000])
 
 if __name__ == "__main__":
