@@ -48,6 +48,7 @@ those convert to websites and get like 10 billion redirects to like some bs and 
 1. Install **Python 3.8 or higher** from [python.org](https://www.python.org/).
 2. Download the latest **`yt-dlp.exe`** from the [official yt-dlp GitHub](https://github.com/yt-dlp/yt-dlp/releases).
 3. Download **`ffmpeg.exe`** (Essentials build) from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) or the official ffmpeg website.
+4. Download the latest **`deno.exe`** from the [official deno GitHub](https://github.com/denoland/deno/releases).
 
 ### Installation Steps
 1. Install **Python 3.8 or higher** from [python.org](https://www.python.org/). *(Check "Add Python to PATH" during install).*
